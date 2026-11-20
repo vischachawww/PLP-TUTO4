@@ -118,25 +118,92 @@ def demo_m4():
 #      FEATURE 7: Coroutines or generators
 #      + a RECURSIVE call for the Task 2 stack diagram
 # Menu: 5. Curve all marks, 6. Generate report
-# Must show: a closure that keeps its variables after the outer
-#            function returns; a generator/coroutine that suspends and
-#            resumes. Coordinate with M4 if option 5 uses their
-#            function-as-parameter code.
 # =====================================================================
 
+# Feature 6: Closure (NATIVE in Python)
+def make_curve(points, cap=100):
+    """Outer function ('curve maker') that returns a closure."""
+    def apply_curve(mark):
+        # Retains `points` and `cap` even after make_curve() returns
+        return min(mark + points, cap)
+    return apply_curve
+
+
+# Task 2 Requirement: Recursive subprogram (NATIVE in Python)
+def total_marks_recursive(marks, index=0):
+    """Recursively calculates a student's total marks.
+    Used in the report and for Task 2 Stack Diagram #2."""
+    if index == len(marks):             # Base case
+        return 0
+    current = marks[index]              # Local variable in this activation record
+    rest_total = total_marks_recursive(marks, index + 1)
+    return current + rest_total
+
+
+# Feature 7: Generator / Semi-Coroutine (NATIVE in Python)
+# Note: This is a generator (produces values via `yield`), not a full
+# coroutine (which also receives values via `.send()`).
+def report_generator(student_list):
+    """Yields one student's report at a time, suspending execution
+    and preserving local state between calls."""
+    for idx, s in enumerate(student_list, 1):
+        total = total_marks_recursive(s.marks)
+        avg = s.average()
+        status = "PASS" if avg >= 50 else "FAIL"
+        yield (
+            f"[{idx}/{len(student_list)}] {s.name:<8} | "
+            f"Marks: {s.marks} | Total: {total} | Avg: {avg:5.1f} | {status}"
+        )
+
+
 def option_curve_marks():
-    """Menu option 5. (M5, with M4's Feature 5)"""
-    print("TODO (M5): curve all marks")
+    """Menu option 5 - Feature 6 (Closure), ready to pair with M4's Feature 5."""
+    try:
+        points = int(input("Enter curve points to add (e.g. 5): "))
+    except ValueError:
+        print("Points must be a whole number.")
+        return
+
+    curve_fn = make_curve(points)       # Outer function returns; closure persists
+
+    # NOTE FOR M4 INTEGRATION:
+    # Once M4 finishes Feature 5 (e.g. apply_to_all(students, func)),
+    # replace the loop below with M4's higher-order function call.
+    for s in students:
+        s.marks = [curve_fn(m) for m in s.marks]
+
+    print(f"Applied +{points} curve (capped at 100) to all students.")
+    show_students()
 
 
 def option_report():
-    """Menu option 6. (M5)"""
-    print("TODO (M5): generate report")
+    """Menu option 6 - Feature 7 (Generator, pauses on Enter)."""
+    gen = report_generator(students)
+    print("\n--- Student Performance Report ---")
+    for i, line in enumerate(gen, 1):
+        print(line)
+        if i < len(students):
+            input("Press Enter for next student...")
+    print("--- End of Report ---")
 
 
 def demo_m5():
     """Non-interactive demo of Features 6, 7 and recursion. (M5)"""
-    print("TODO (M5)")
+    # Feature 6: Closure
+    curve_plus_5 = make_curve(5)
+    print("Closure (85 -> +5):", curve_plus_5(85))
+    print("Closure (98 -> +5, capped):", curve_plus_5(98))
+
+    # Feature 7: Generator (manual next() calls show suspend/resume without input())
+    gen = report_generator(students)
+    print("Generator yield 1:", next(gen))
+    print("Generator yield 2:", next(gen))
+    print("Generator yield 3:", next(gen))
+
+    # Task 2: Recursive call
+    ali_marks = students[0].marks       # [70, 85, 60]
+    total = total_marks_recursive(ali_marks)
+    print(f"Recursive total for {students[0].name} {ali_marks}: {total}")
 
 
 # =====================================================================
