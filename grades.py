@@ -21,6 +21,8 @@ Owners:
   M5 - Feature 6, Feature 7, recursive call for Task 2
 """
 
+from functools import singledispatch
+from typing import Callable, List, Optional, TypeVar
 
 # =====================================================================
 # SHARED DATA + FEATURE 8: User-defined overloaded operators  (M1)
@@ -103,14 +105,146 @@ def demo_m3():
 #            another function as a parameter and calls it indirectly.
 # =====================================================================
 
+T = TypeVar("T")
+
+
+# Feature 4a: Overloaded subprogram (SIMULATED in Python via singledispatch)
+# Python does not natively support compile-time ad-hoc overloading (redefining
+# a function name overwrites it). functools.singledispatch simulates overloading
+# by dispatching at runtime based on the type of the first argument.
+@singledispatch
+def summarize(data):
+    """Default fallback if an unsupported type is passed."""
+    return f"Unsupported data type: {type(data).__name__}"
+
+
+@summarize.register(Student)
+def _(student: Student):
+    """Overload 1: summarize a single Student object."""
+    return (
+        f"Student {student.name}: marks={student.marks}, "
+        f"avg={student.average():.1f}"
+    )
+
+
+@summarize.register(list)
+def _(items: list):
+    """Overload 2: summarize a list of Students or a list of numeric marks."""
+    if not items:
+        return "Empty list."
+    if isinstance(items[0], Student):
+        class_avg = sum(s.average() for s in items) / len(items)
+        return f"Class of {len(items)} students | Overall Avg: {class_avg:.1f}"
+    return (
+        f"{len(items)} marks | Min: {min(items)}, "
+        f"Max: {max(items)}, Avg: {sum(items) / len(items):.1f}"
+    )
+
+
+@summarize.register(int)
+@summarize.register(float)
+def _(mark):
+    """Overload 3: summarize a single numeric mark."""
+    status = "PASS" if mark >= 50 else "FAIL"
+    return f"Single mark: {mark} ({status})"
+
+
+# Feature 4b: Generic subprogram (NATIVE via dynamic typing / duck typing,
+#             with static TypeVar annotations from Python's typing module)
+def find_highest(
+    items: List[T],
+    key_fn: Callable[[T], float]
+) -> Optional[T]:
+    """Generic function that returns the highest item of any type T,
+    using key_fn to extract a comparable numeric score."""
+    if not items:
+        return None
+    best = items[0]
+    best_score = key_fn(best)
+    for item in items[1:]:
+        score = key_fn(item)
+        if score > best_score:
+            best = item
+            best_score = score
+    return best
+
+
+# Feature 5: Subprograms as parameters and indirect calls (NATIVE in Python)
+def compute_class_stat(
+    student_list: List[Student],
+    stat_fn: Callable[[List[float]], float]
+) -> float:
+    """Accepts a statistic function (stat_fn) as a parameter and invokes it
+    indirectly on the list of student averages."""
+    if not student_list:
+        return 0.0
+    averages = [s.average() for s in student_list]
+    return stat_fn(averages)            # Indirect call to passed function
+
+
+def apply_to_all(
+    student_list: List[Student],
+    mark_fn: Callable[[int], int]
+) -> None:
+    """Higher-order function (Feature 5) used by M5's option_curve_marks().
+    Accepts a transformation function and calls it indirectly on every mark."""
+    for s in student_list:
+        s.marks = [mark_fn(m) for m in s.marks]     # Indirect call
+
+
+def _mean(values: List[float]) -> float:
+    """Helper statistic function passed to compute_class_stat()."""
+    return sum(values) / len(values)
+
+
 def option_statistics():
-    """Menu option 4. (M4)"""
-    print("TODO (M4): class statistics")
+    """Menu option 4 - Features 4 & 5. (M4)"""
+    if not students:
+        print("No students available.")
+        return
+
+    print("\n--- Class Statistics ---")
+    # Feature 4a: Overloaded summarize() with different argument types
+    print(summarize(students))                      # list[Student]
+    all_marks = [m for s in students for m in s.marks]
+    print(summarize(all_marks))                     # list[int]
+
+    # Feature 4b: Generic find_highest() on Student objects and int marks
+    top_student = find_highest(students, lambda s: s.average())
+    highest_mark = find_highest(all_marks, lambda m: m)
+    print("Top Student ->", summarize(top_student)) # Student overload
+    print("Highest Mark ->", summarize(highest_mark))  # int overload
+
+    # Feature 5: Indirect calls via compute_class_stat()
+    print(f"Class Mean Avg:    {compute_class_stat(students, _mean):.1f}")
+    print(f"Highest Avg:       {compute_class_stat(students, max):.1f}")
+    print(f"Lowest Avg:        {compute_class_stat(students, min):.1f}")
 
 
 def demo_m4():
     """Non-interactive demo of Features 4 and 5. (M4)"""
-    print("TODO (M4)")
+    # Feature 4a: Overloaded function (singledispatch)
+    print("Overload (Student):", summarize(students[0]))
+    print("Overload (list):   ", summarize(students))
+    print("Overload (int):    ", summarize(88))
+
+    # Feature 4b: Generic function (same function works on Student, int, str)
+    top_s = find_highest(students, lambda s: s.average())
+    top_m = find_highest([70, 85, 60], lambda m: m)
+    longest_name = find_highest(["Ali", "Mei", "Rajesh"], len)
+    print(f"Generic (Student): {top_s.name} ({top_s.average():.1f})")
+    print(f"Generic (int):     {top_m}")
+    print(f"Generic (str):     {longest_name}")
+
+    # Feature 5: Subprograms as parameters & indirect calls
+    print(f"Indirect call (mean): {compute_class_stat(students, _mean):.1f}")
+    print(f"Indirect call (max):  {compute_class_stat(students, max):.1f}")
+
+    # Demo apply_to_all() on a temporary student so shared `students` stays
+    # unchanged for M5's demo_m5()
+    sample = [Student("Demo", [60, 80])]
+    apply_to_all(sample, lambda m: min(m + 5, 100))
+    print("Indirect call (apply_to_all +5):", sample[0])
 
 
 # =====================================================================
@@ -166,11 +300,7 @@ def option_curve_marks():
 
     curve_fn = make_curve(points)       # Outer function returns; closure persists
 
-    # NOTE FOR M4 INTEGRATION:
-    # Once M4 finishes Feature 5 (e.g. apply_to_all(students, func)),
-    # replace the loop below with M4's higher-order function call.
-    for s in students:
-        s.marks = [curve_fn(m) for m in s.marks]
+    apply_to_all(students, curve_fn)
 
     print(f"Applied +{points} curve (capped at 100) to all students.")
     show_students()
