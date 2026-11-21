@@ -87,14 +87,116 @@ def demo_m2():
 #            native and which are simulated.
 # =====================================================================
 
+# 1. Mode: IN | Method: Pass-by-value
+# Status in Python: NATIVE-EQUIVALENT for immutable types (int, float, str)
+def preview_adjusted_mark(mark, bonus):
+    """Caller -> Subprogram only. Rebinding `mark` locally does NOT
+    change the caller's variable."""
+    mark = min(mark + bonus, 100)       # modifies local binding only
+    return mark
+
+
+# 2. Mode: OUT | Method: Pass-by-result
+# Status in Python: SIMULATED (using a mutable dict populated only at exit)
+def compute_mark_summary(marks, out_summary):
+    """Subprogram -> Caller only. Ignores initial contents of `out_summary`
+    and writes results back only at the end of the subprogram."""
+    if not marks:
+        result = {"min": 0, "max": 0, "avg": 0.0}
+    else:
+        result = {
+            "min": min(marks),
+            "max": max(marks),
+            "avg": round(sum(marks) / len(marks), 1),
+        }
+    # Copy-out at the end of execution
+    out_summary.clear()
+    out_summary.update(result)
+
+
+# 3. Mode: INOUT | Method: Pass-by-value-result (copy-in, copy-out)
+# Status in Python: SIMULATED (using a 1-element list as a mutable box)
+def adjust_mark_value_result(mark_box, bonus):
+    """Caller <-> Subprogram. Copies value IN at start, works on a local
+    copy, and copies value OUT to caller's box only at the end."""
+    local_mark = mark_box[0]            # Copy-in at start
+    local_mark = max(0, min(local_mark + bonus, 100))
+    # Notice: mark_box[0] is still unchanged until the line below
+    mark_box[0] = local_mark            # Copy-out at end
+
+
+# 4. Mode: INOUT | Method: Pass-by-reference
+# Status in Python: NATIVE-EQUIVALENT for mutable objects (list, Student)
+def apply_bonus_by_ref(student, index, bonus):
+    """Caller <-> Subprogram. Mutates the caller's Student object in-place
+    through its object reference; changes are visible immediately."""
+    student.marks[index] = max(0, min(student.marks[index] + bonus, 100))
+
+
 def option_adjust_marks():
-    """Menu option 3. (M3)"""
-    print("TODO (M3): adjust marks")
+    """Menu option 3 - Feature 3: Adjust a student's mark. (M3)"""
+    student = pick_student("Choose student to adjust: ")
+    if not student or not student.marks:
+        return
+
+    print(f"Current marks for {student.name}:")
+    for i, m in enumerate(student.marks, 1):
+        print(f"  {i}. {m}")
+
+    try:
+        idx = int(input("Choose mark number to adjust: ")) - 1
+        if not (0 <= idx < len(student.marks)):
+            print("Invalid mark number.")
+            return
+        bonus = int(input("Enter points to add/subtract (e.g. 5 or -5): "))
+    except ValueError:
+        print("Please enter whole numbers.")
+        return
+
+    # Demonstrate IN (pass-by-value) to preview without changing data
+    preview = preview_adjusted_mark(student.marks[idx], bonus)
+    print(f"Preview (pass-by-value, original unchanged): "
+          f"{student.marks[idx]} -> {preview}")
+
+    confirm = input("Apply this change? (y/n): ").strip().lower()
+    if confirm == "y":
+        # Demonstrate INOUT (pass-by-reference) to update in-place
+        apply_bonus_by_ref(student, idx, bonus)
+
+        # Demonstrate OUT (pass-by-result) to retrieve updated summary
+        summary = {}
+        compute_mark_summary(student.marks, summary)
+        print(f"Updated {student.name}: marks={student.marks} | "
+              f"min={summary['min']}, max={summary['max']}, avg={summary['avg']}")
+    else:
+        print("Adjustment cancelled.")
 
 
 def demo_m3():
-    """Non-interactive demo of Feature 3. (M3)"""
-    print("TODO (M3)")
+    """Non-interactive demo of Feature 3 for Python Tutor / OneCompiler. (M3)"""
+    # Use a dedicated Student instance so we don't alter shared `students` for M5
+    demo_student = Student("Ali_Demo", [70, 85, 60])
+
+    # 1. IN mode — Pass-by-value (NATIVE-EQUIVALENT for int)
+    original_mark = demo_student.marks[0]
+    preview = preview_adjusted_mark(original_mark, 10)
+    print(f"[IN / Pass-by-value] preview={preview}, "
+          f"caller original_mark={original_mark} (unchanged)")
+
+    # 2. OUT mode — Pass-by-result (SIMULATED)
+    summary_out = {}
+    compute_mark_summary(demo_student.marks, summary_out)
+    print(f"[OUT / Pass-by-result] summary_out={summary_out}")
+
+    # 3. INOUT mode — Pass-by-value-result (SIMULATED)
+    mark_box = [demo_student.marks[2]]          # [60]
+    adjust_mark_value_result(mark_box, 8)
+    print(f"[INOUT / Pass-by-value-result] mark_box after call={mark_box}")
+
+    # 4. INOUT mode — Pass-by-reference (NATIVE-EQUIVALENT for mutable Student)
+    print(f"[INOUT / Pass-by-reference] before: {demo_student}")
+    apply_bonus_by_ref(demo_student, 0, 5)
+    print(f"[INOUT / Pass-by-reference] after:  {demo_student}")
 
 
 # =====================================================================
