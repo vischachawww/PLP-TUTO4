@@ -1,0 +1,557 @@
+     1	"""
+     2	WIF3010 Tutorial 4 - Student Grade System
+     3	
+     4	Owners:
+     5	  M1 - Student class, Feature 8, menu(), demo(), helpers
+     6	  M2 - Feature 1, Feature 2
+     7	  M3 - Feature 3
+     8	  M4 - Feature 4, Feature 5
+     9	  M5 - Feature 6, Feature 7, recursive call for Task 2
+    10	"""
+    11	
+    12	from functools import singledispatch
+    13	from typing import Callable, List, Optional, TypeVar
+    14	
+    15	class Student:
+    16	    def __init__(self, name, marks):
+    17	        self.name = name
+    18	        self.marks = marks
+    19	
+    20	    def average(self):
+    21	        return sum(self.marks) / len(self.marks) if self.marks else 0
+    22	
+    23	    # Feature 8: s1 + s2 -> merged record (NATIVE operator overloading)
+    24	    def __add__(self, other):
+    25	        return Student(f"{self.name}&{other.name}", self.marks + other.marks)
+    26	
+    27	    # Feature 8: s1 < s2 -> compare by average (lets sorted() rank students)
+    28	    def __lt__(self, other):
+    29	        return self.average() < other.average()
+    30	
+    31	    def __repr__(self):
+    32	        return f"Student({self.name}, {self.marks})"
+    33	
+    34	
+    35	students = [
+    36	    Student("Ali", [70, 85, 60]),
+    37	    Student("Mei", [90, 75, 88]),
+    38	    Student("Raj", [55, 65, 72]),
+    39	]
+    40	
+    41	
+    42	#FEATURE 1:
+    43	#create_student() builds a new Student, a list of marks and an optional bonus (default 0), and returns it.
+    44	#option_add_student() reads the input, calls create_student()
+    45	#returned Student to the `students` list. 
+    46	
+    47	def create_student(name, marks, bonus=0):
+    48	    """Build a Student. Every mark gets `bonus` extra points (capped at 100).
+    49	    The caller's `marks` list is NOT modified (a new list is built)."""
+    50	    boosted = [min(m + bonus, 100) for m in marks]    # local variable
+    51	    return Student(name, boosted)
+    52	
+    53	
+    54	def option_add_student():
+    55	    """Menu option 1 - Feature 1: Add a student. (M2)"""
+    56	    name = input("Student name: ").strip()
+    57	    if not name:
+    58	        print("Name cannot be empty.")
+    59	        return
+    60	
+    61	    marks = read_marks("Enter marks (0-100) separated by spaces: ")
+    62	    if not marks:
+    63	        print("At least one mark is required.")
+    64	        return
+    65	    if any(m < 0 or m > 100 for m in marks):
+    66	        print("Marks must be between 0 and 100.")
+    67	        return
+    68	
+    69	    bonus_text = input("Bonus points for every mark (Enter = 0): ").strip()
+    70	    try:
+    71	        bonus = int(bonus_text) if bonus_text else 0
+    72	    except ValueError:
+    73	        print("Bonus must be a whole number.")
+    74	        return
+    75	
+    76	    if bonus_text:
+    77	        new_student = create_student(name, marks, bonus)         
+    78	    else:
+    79	        new_student = create_student(name=name, marks=marks)     # keyword args, default bonus=0
+    80	    students.append(new_student)
+    81	    print(f"Added: {new_student}")
+    82	    
+    83	    
+    84	#FEATURES 2:
+    85	# works out a student's total, average
+    86	def compute_grade(student, pass_mark=50):
+    87	    """Return (total, average, letter) for one student."""
+    88	    total = sum(student.marks)                                  # local
+    89	    average = total / len(student.marks) if student.marks else 0  # local
+    90	
+    91	    def to_letter(score):                       # nested helper
+    92	        if score < pass_mark:                   # reads parent's variable
+    93	            return "F"
+    94	        if score >= 80:
+    95	            return "A"
+    96	        if score >= 70:
+    97	            return "B"
+    98	        if score >= 60:
+    99	            return "C"
+   100	        return "D"
+   101	
+   102	    grade = to_letter(average)                  # local
+   103	    return total, average, grade
+   104	    # <- on return: total, average, grade, to_letter and the frame are destroyed
+   105	
+   106	
+   107	def option_view_students():
+   108	    """Menu option 2 - Feature 2: View all students and their grades. (M2)"""
+   109	    if not students:
+   110	        print("No students yet.")
+   111	        return
+   112	    print(f"\n{'#':<3}{'Name':<10}{'Marks':<20}{'Total':>6}{'Avg':>8}  Grade")
+   113	    for i, s in enumerate(students, 1):
+   114	        total, average, grade = compute_grade(s)
+   115	        print(f"{i:<3}{s.name:<10}{str(s.marks):<20}{total:>6}{average:>8.1f}  {grade}")
+   116	
+   117	#shows that the locals and the nested function no longer exist after the call returns.
+   118	def demo_m2():
+   119	    """Non-interactive demo of Features 1 and 2. (M2)"""
+   120	    # ---- Feature 1: parameters, defaults, return values ----
+   121	    print("[F1] positional args  :", create_student("Siti", [60, 70, 80], 5))
+   122	    print("[F1] keyword args     :", create_student(marks=[60, 70, 80], name="Siti"))
+   123	    print("[F1] default bonus=0  :", create_student("Siti", [60, 70, 80]))
+   124	    print("[F1] cap at 100       :", create_student("Top", [98, 100], bonus=10))
+   125	
+   126	    # ---- Feature 2: local variables, nested function, lifetime ----
+   127	    ali = students[0]                                  # Student("Ali", [70, 85, 60])
+   128	    total, average, grade = compute_grade(ali)         # frame created here
+   129	    print(f"[F2] {ali.name}: total={total}, average={average:.1f}, grade={grade}")
+   130	    print("[F2] stricter pass_mark=75 :", compute_grade(ali, pass_mark=75)[2])
+   131	
+   132	    # Lifetime: compute_grade's frame is gone, so its local names no longer exist.
+   133	    try:
+   134	        print(to_letter(90))                            # nested helper is not visible here
+   135	    except NameError as err:
+   136	        print("[F2] lifetime ended   :", err)
+   137	
+   138	
+   139	# FEATURE 3:
+   140	# in / out / inout modes; pass-by-value, pass-by-result,
+   141	# pass-by-value-result, pass-by-reference.
+   142	
+   143	# 1. Mode: IN | Method: Pass-by-value
+   144	# Status in Python: NATIVE-EQUIVALENT for immutable types (int, float, str)
+   145	def preview_adjusted_mark(mark, bonus):
+   146	    """Caller -> Subprogram only. Rebinding `mark` locally does NOT
+   147	    change the caller's variable."""
+   148	    mark = min(mark + bonus, 100)       # modifies local binding only
+   149	    return mark
+   150	
+   151	
+   152	# 2. Mode: OUT | Method: Pass-by-result
+   153	# Status in Python: SIMULATED (using a mutable dict populated only at exit)
+   154	def compute_mark_summary(marks, out_summary):
+   155	    """Subprogram -> Caller only. Ignores initial contents of `out_summary`
+   156	    and writes results back only at the end of the subprogram."""
+   157	    if not marks:
+   158	        result = {"min": 0, "max": 0, "avg": 0.0}
+   159	    else:
+   160	        result = {
+   161	            "min": min(marks),
+   162	            "max": max(marks),
+   163	            "avg": round(sum(marks) / len(marks), 1),
+   164	        }
+   165	    # Copy-out at the end of execution
+   166	    out_summary.clear()
+   167	    out_summary.update(result)
+   168	
+   169	
+   170	# 3. Mode: INOUT | Method: Pass-by-value-result (copy-in, copy-out)
+   171	# Status in Python: SIMULATED (using a 1-element list as a mutable box)
+   172	def adjust_mark_value_result(mark_box, bonus):
+   173	    """Caller <-> Subprogram. Copies value IN at start, works on a local
+   174	    copy, and copies value OUT to caller's box only at the end."""
+   175	    local_mark = mark_box[0]            # Copy-in at start
+   176	    local_mark = max(0, min(local_mark + bonus, 100))
+   177	    # Notice: mark_box[0] is still unchanged until the line below
+   178	    mark_box[0] = local_mark            # Copy-out at end
+   179	
+   180	
+   181	# 4. Mode: INOUT | Method: Pass-by-reference
+   182	# Status in Python: NATIVE-EQUIVALENT for mutable objects (list, Student)
+   183	def apply_bonus_by_ref(student, index, bonus):
+   184	    """Caller <-> Subprogram. Mutates the caller's Student object in-place
+   185	    through its object reference; changes are visible immediately."""
+   186	    student.marks[index] = max(0, min(student.marks[index] + bonus, 100))
+   187	
+   188	
+   189	def option_adjust_marks():
+   190	    """Menu option 3 - Feature 3: Adjust a student's mark. (M3)"""
+   191	    student = pick_student("Choose student to adjust: ")
+   192	    if not student or not student.marks:
+   193	        return
+   194	
+   195	    print(f"Current marks for {student.name}:")
+   196	    for i, m in enumerate(student.marks, 1):
+   197	        print(f"  {i}. {m}")
+   198	
+   199	    try:
+   200	        idx = int(input("Choose mark number to adjust: ")) - 1
+   201	        if not (0 <= idx < len(student.marks)):
+   202	            print("Invalid mark number.")
+   203	            return
+   204	        bonus = int(input("Enter points to add/subtract (e.g. 5 or -5): "))
+   205	    except ValueError:
+   206	        print("Please enter whole numbers.")
+   207	        return
+   208	
+   209	    # Demonstrate IN (pass-by-value) to preview without changing data
+   210	    preview = preview_adjusted_mark(student.marks[idx], bonus)
+   211	    print(f"Preview (pass-by-value, original unchanged): "
+   212	          f"{student.marks[idx]} -> {preview}")
+   213	
+   214	    confirm = input("Apply this change? (y/n): ").strip().lower()
+   215	    if confirm == "y":
+   216	        # Demonstrate INOUT (pass-by-reference) to update in-place
+   217	        apply_bonus_by_ref(student, idx, bonus)
+   218	
+   219	        # Demonstrate OUT (pass-by-result) to retrieve updated summary
+   220	        summary = {}
+   221	        compute_mark_summary(student.marks, summary)
+   222	        print(f"Updated {student.name}: marks={student.marks} | "
+   223	              f"min={summary['min']}, max={summary['max']}, avg={summary['avg']}")
+   224	    else:
+   225	        print("Adjustment cancelled.")
+   226	
+   227	
+   228	def demo_m3():
+   229	    """Non-interactive demo of Feature 3 for Python Tutor / OneCompiler. (M3)"""
+   230	    # Use a dedicated Student instance so we don't alter shared `students` for M5
+   231	    demo_student = Student("Ali_Demo", [70, 85, 60])
+   232	
+   233	    # 1. IN mode — Pass-by-value (NATIVE-EQUIVALENT for int)
+   234	    original_mark = demo_student.marks[0]
+   235	    preview = preview_adjusted_mark(original_mark, 10)
+   236	    print(f"[IN / Pass-by-value] preview={preview}, "
+   237	          f"caller original_mark={original_mark} (unchanged)")
+   238	
+   239	    # 2. OUT mode — Pass-by-result (SIMULATED)
+   240	    summary_out = {}
+   241	    compute_mark_summary(demo_student.marks, summary_out)
+   242	    print(f"[OUT / Pass-by-result] summary_out={summary_out}")
+   243	
+   244	    # 3. INOUT mode — Pass-by-value-result (SIMULATED)
+   245	    mark_box = [demo_student.marks[2]]          # [60]
+   246	    adjust_mark_value_result(mark_box, 8)
+   247	    print(f"[INOUT / Pass-by-value-result] mark_box after call={mark_box}")
+   248	
+   249	    # 4. INOUT mode — Pass-by-reference (NATIVE-EQUIVALENT for mutable Student)
+   250	    print(f"[INOUT / Pass-by-reference] before: {demo_student}")
+   251	    apply_bonus_by_ref(demo_student, 0, 5)
+   252	    print(f"[INOUT / Pass-by-reference] after:  {demo_student}")
+   253	
+   254	
+   255	T = TypeVar("T")
+   256	
+   257	
+   258	# Feature 4a: Overloaded subprogram (SIMULATED in Python via singledispatch)
+   259	@singledispatch
+   260	def summarize(data):
+   261	    """Default fallback if an unsupported type is passed."""
+   262	    return f"Unsupported data type: {type(data).__name__}"
+   263	
+   264	
+   265	@summarize.register(Student)
+   266	def _(student: Student):
+   267	    """Overload 1: summarize a single Student object."""
+   268	    return (
+   269	        f"Student {student.name}: marks={student.marks}, "
+   270	        f"avg={student.average():.1f}"
+   271	    )
+   272	
+   273	
+   274	@summarize.register(list)
+   275	def _(items: list):
+   276	    """Overload 2: summarize a list of Students or a list of numeric marks."""
+   277	    if not items:
+   278	        return "Empty list."
+   279	    if isinstance(items[0], Student):
+   280	        class_avg = sum(s.average() for s in items) / len(items)
+   281	        return f"Class of {len(items)} students | Overall Avg: {class_avg:.1f}"
+   282	    return (
+   283	        f"{len(items)} marks | Min: {min(items)}, "
+   284	        f"Max: {max(items)}, Avg: {sum(items) / len(items):.1f}"
+   285	    )
+   286	
+   287	
+   288	@summarize.register(int)
+   289	@summarize.register(float)
+   290	def _(mark):
+   291	    """Overload 3: summarize a single numeric mark."""
+   292	    status = "PASS" if mark >= 50 else "FAIL"
+   293	    return f"Single mark: {mark} ({status})"
+   294	
+   295	
+   296	# Feature 4b: Generic subprogram (NATIVE via dynamic typing / duck typing,
+   297	#             with static TypeVar annotations from Python's typing module)
+   298	def find_highest(
+   299	    items: List[T],
+   300	    key_fn: Callable[[T], float]
+   301	) -> Optional[T]:
+   302	    """Generic function that returns the highest item of any type T,
+   303	    using key_fn to extract a comparable numeric score."""
+   304	    if not items:
+   305	        return None
+   306	    best = items[0]
+   307	    best_score = key_fn(best)
+   308	    for item in items[1:]:
+   309	        score = key_fn(item)
+   310	        if score > best_score:
+   311	            best = item
+   312	            best_score = score
+   313	    return best
+   314	
+   315	
+   316	# Feature 5: Subprograms as parameters and indirect calls (NATIVE in Python)
+   317	def compute_class_stat(
+   318	    student_list: List[Student],
+   319	    stat_fn: Callable[[List[float]], float]
+   320	) -> float:
+   321	    """Accepts a statistic function (stat_fn) as a parameter and invokes it
+   322	    indirectly on the list of student averages."""
+   323	    if not student_list:
+   324	        return 0.0
+   325	    averages = [s.average() for s in student_list]
+   326	    return stat_fn(averages)            # Indirect call to passed function
+   327	
+   328	
+   329	def apply_to_all(
+   330	    student_list: List[Student],
+   331	    mark_fn: Callable[[int], int]
+   332	) -> None:
+   333	    """Higher-order function (Feature 5) used by M5's option_curve_marks().
+   334	    Accepts a transformation function and calls it indirectly on every mark."""
+   335	    for s in student_list:
+   336	        s.marks = [mark_fn(m) for m in s.marks]     # Indirect call
+   337	
+   338	
+   339	def _mean(values: List[float]) -> float:
+   340	    """Helper statistic function passed to compute_class_stat()."""
+   341	    return sum(values) / len(values)
+   342	
+   343	
+   344	def option_statistics():
+   345	    """Menu option 4 - Features 4 & 5. (M4)"""
+   346	    if not students:
+   347	        print("No students available.")
+   348	        return
+   349	
+   350	    print("\n--- Class Statistics ---")
+   351	    # Feature 4a: Overloaded summarize() with different argument types
+   352	    print(summarize(students))                      # list[Student]
+   353	    all_marks = [m for s in students for m in s.marks]
+   354	    print(summarize(all_marks))                     # list[int]
+   355	
+   356	    # Feature 4b: Generic find_highest() on Student objects and int marks
+   357	    top_student = find_highest(students, lambda s: s.average())
+   358	    highest_mark = find_highest(all_marks, lambda m: m)
+   359	    print("Top Student ->", summarize(top_student)) # Student overload
+   360	    print("Highest Mark ->", summarize(highest_mark))  # int overload
+   361	
+   362	    # Feature 5: Indirect calls via compute_class_stat()
+   363	    print(f"Class Mean Avg:    {compute_class_stat(students, _mean):.1f}")
+   364	    print(f"Highest Avg:       {compute_class_stat(students, max):.1f}")
+   365	    print(f"Lowest Avg:        {compute_class_stat(students, min):.1f}")
+   366	
+   367	
+   368	def demo_m4():
+   369	    """Non-interactive demo of Features 4 and 5. (M4)"""
+   370	    # Feature 4a: Overloaded function (singledispatch)
+   371	    print("Overload (Student):", summarize(students[0]))
+   372	    print("Overload (list):   ", summarize(students))
+   373	    print("Overload (int):    ", summarize(88))
+   374	
+   375	    # Feature 4b: Generic function (same function works on Student, int, str)
+   376	    top_s = find_highest(students, lambda s: s.average())
+   377	    top_m = find_highest([70, 85, 60], lambda m: m)
+   378	    longest_name = find_highest(["Ali", "Mei", "Rajesh"], len)
+   379	    print(f"Generic (Student): {top_s.name} ({top_s.average():.1f})")
+   380	    print(f"Generic (int):     {top_m}")
+   381	    print(f"Generic (str):     {longest_name}")
+   382	
+   383	    # Feature 5: Subprograms as parameters & indirect calls
+   384	    print(f"Indirect call (mean): {compute_class_stat(students, _mean):.1f}")
+   385	    print(f"Indirect call (max):  {compute_class_stat(students, max):.1f}")
+   386	
+   387	    # Demo apply_to_all() on a temporary student so shared `students` stays
+   388	    # unchanged for M5's demo_m5()
+   389	    sample = [Student("Demo", [60, 80])]
+   390	    apply_to_all(sample, lambda m: min(m + 5, 100))
+   391	    print("Indirect call (apply_to_all +5):", sample[0])
+   392	
+   393	
+   394	# Feature 6: Closure (NATIVE in Python)
+   395	def make_curve(points, cap=100):
+   396	    """Outer function ('curve maker') that returns a closure."""
+   397	    def apply_curve(mark):
+   398	        # Retains `points` and `cap` even after make_curve() returns
+   399	        return min(mark + points, cap)
+   400	    return apply_curve
+   401	
+   402	
+   403	# Task 2: Recursive subprogram (NATIVE in Python)
+   404	def total_marks_recursive(marks, index=0):
+   405	    """Recursively calculates a student's total marks.
+   406	    Used in the report and for Task 2 Stack Diagram #2."""
+   407	    if index == len(marks):             # Base case
+   408	        return 0
+   409	    current = marks[index]              # Local variable in this activation record
+   410	    rest_total = total_marks_recursive(marks, index + 1)
+   411	    return current + rest_total
+   412	
+   413	
+   414	# Feature 7: Generator / Semi-Coroutine (NATIVE in Python)
+   415	def report_generator(student_list):
+   416	    """Yields one student's report at a time, suspending execution
+   417	    and preserving local state between calls."""
+   418	    for idx, s in enumerate(student_list, 1):
+   419	        total = total_marks_recursive(s.marks)
+   420	        avg = s.average()
+   421	        status = "PASS" if avg >= 50 else "FAIL"
+   422	        yield (
+   423	            f"[{idx}/{len(student_list)}] {s.name:<8} | "
+   424	            f"Marks: {s.marks} | Total: {total} | Avg: {avg:5.1f} | {status}"
+   425	        )
+   426	
+   427	
+   428	def option_curve_marks():
+   429	    """Menu option 5 - Feature 6 (Closure), ready to pair with M4's Feature 5."""
+   430	    try:
+   431	        points = int(input("Enter curve points to add (e.g. 5): "))
+   432	    except ValueError:
+   433	        print("Points must be a whole number.")
+   434	        return
+   435	
+   436	    curve_fn = make_curve(points)       # Outer function returns; closure persists
+   437	
+   438	    apply_to_all(students, curve_fn)
+   439	
+   440	    print(f"Applied +{points} curve (capped at 100) to all students.")
+   441	    show_students()
+   442	
+   443	
+   444	def option_report():
+   445	    """Menu option 6 - Feature 7 (Generator, pauses on Enter)."""
+   446	    gen = report_generator(students)
+   447	    print("\n--- Student Performance Report ---")
+   448	    for i, line in enumerate(gen, 1):
+   449	        print(line)
+   450	        if i < len(students):
+   451	            input("Press Enter for next student...")
+   452	    print("--- End of Report ---")
+   453	
+   454	
+   455	def demo_m5():
+   456	    """Non-interactive demo of Features 6, 7 and recursion. (M5)"""
+   457	    # Feature 6: Closure
+   458	    curve_plus_5 = make_curve(5)
+   459	    print("Closure (85 -> +5):", curve_plus_5(85))
+   460	    print("Closure (98 -> +5, capped):", curve_plus_5(98))
+   461	
+   462	    # Feature 7: Generator (manual next() calls show suspend/resume without input())
+   463	    gen = report_generator(students)
+   464	    print("Generator yield 1:", next(gen))
+   465	    print("Generator yield 2:", next(gen))
+   466	    print("Generator yield 3:", next(gen))
+   467	
+   468	    # Task 2: Recursive call
+   469	    ali_marks = students[0].marks       # [70, 85, 60]
+   470	    total = total_marks_recursive(ali_marks)
+   471	    print(f"Recursive total for {students[0].name} {ali_marks}: {total}")
+   472	
+   473	
+   474	def show_students():
+   475	    """Shared helper: list students with their marks and average."""
+   476	    for i, s in enumerate(students, 1):
+   477	        print(f"{i}. {s.name:<10} marks={s.marks} avg={s.average():.1f}")
+   478	
+   479	
+   480	def pick_student(prompt="Choose student number: "):
+   481	    """Shared helper: let the user choose a student; returns Student or None."""
+   482	    show_students()
+   483	    try:
+   484	        return students[int(input(prompt)) - 1]
+   485	    except (ValueError, IndexError):
+   486	        print("Invalid choice.")
+   487	        return None
+   488	
+   489	
+   490	def read_marks(prompt="Enter marks separated by spaces: "):
+   491	    """Shared helper: read a list of int marks; returns list or None."""
+   492	    try:
+   493	        return [int(x) for x in input(prompt).split()]
+   494	    except ValueError:
+   495	        print("Marks must be whole numbers.")
+   496	        return None
+   497	
+   498	
+   499	def option_rank_students():
+   500	    """Menu option 7 - Feature 8 (<)."""
+   501	    for rank, s in enumerate(sorted(students, reverse=True), 1):
+   502	        print(f"{rank}. {s.name} avg={s.average():.1f}")
+   503	
+   504	
+   505	def option_merge_students():
+   506	    """Menu option 8 - Feature 8 (+)."""
+   507	    a = pick_student("First student: ")
+   508	    b = pick_student("Second student: ")
+   509	    if a and b and a is not b:
+   510	        print("Merged:", a + b)
+   511	
+   512	
+   513	def demo_m1():
+   514	    """Non-interactive demo of Feature 8."""
+   515	    print(students[0] + students[1])          # __add__
+   516	    print(students[0] < students[1])          # __lt__
+   517	    print([s.name for s in sorted(students, reverse=True)])
+   518	
+   519	
+   520	def menu():
+   521	    options = {
+   522	        "1": ("Add student", option_add_student),
+   523	        "2": ("View all students & grades", option_view_students),
+   524	        "3": ("Adjust marks", option_adjust_marks),
+   525	        "4": ("Show class statistics", option_statistics),
+   526	        "5": ("Curve all marks", option_curve_marks),
+   527	        "6": ("Generate report", option_report),
+   528	        "7": ("Rank students", option_rank_students),
+   529	        "8": ("Merge two student records", option_merge_students),
+   530	    }
+   531	    while True:
+   532	        print("\n===== Student Grade System =====")
+   533	        for key, (label, _) in options.items():
+   534	            print(f"{key}. {label}")
+   535	        print("0. Exit")
+   536	        choice = input("Choose: ").strip()
+   537	        if choice == "0":
+   538	            print("Bye!")
+   539	            break
+   540	        elif choice in options:
+   541	            options[choice][1]()
+   542	        else:
+   543	            print("Invalid option.")
+   544	
+   545	
+   546	def demo():
+   547	    """Runs every feature without input(), for Python Tutor / OneCompiler."""
+   548	    print("=== Features 1 & 2 (M2) ===");      demo_m2()
+   549	    print("=== Feature 3 (M3) ===");           demo_m3()
+   550	    print("=== Features 4 & 5 (M4) ===");      demo_m4()
+   551	    print("=== Features 6, 7 & recursion (M5) ==="); demo_m5()
+   552	    print("=== Feature 8 (M1) ===");           demo_m1()
+   553	
+   554	
+   555	if __name__ == "__main__":
+   556	    # demo()        # use this for Python Tutor screenshots
+   557	    menu()      
