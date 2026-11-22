@@ -1,17 +1,5 @@
 """
 WIF3010 Tutorial 4 - Student Grade System
-Shared skeleton. Each member fills in ONLY their own section.
-
-HOW THIS WORKS
-- The Student class, the sample `students` list, menu() and demo() are shared.
-- Each member owns one MENU HANDLER and one DEMO function (named in their
-  section). menu() and demo() already call these, so do NOT rename them.
-- Inside your section you are free to write ANY functions you like to
-  showcase your feature, as long as they fit the Student Grade System.
-- Do NOT rename Student, .name, .marks, .average() or `students`.
-- Label each function with the feature it shows and whether it is
-  NATIVE or SIMULATED in Python.
-- Run `python grades.py` before sending your code to M1.
 
 Owners:
   M1 - Student class, Feature 8, menu(), demo(), helpers
@@ -24,13 +12,10 @@ Owners:
 from functools import singledispatch
 from typing import Callable, List, Optional, TypeVar
 
-# =====================================================================
-# SHARED DATA + FEATURE 8: User-defined overloaded operators  (M1)
-# =====================================================================
 class Student:
     def __init__(self, name, marks):
         self.name = name
-        self.marks = marks              # list of ints, e.g. [70, 85, 60]
+        self.marks = marks
 
     def average(self):
         return sum(self.marks) / len(self.marks) if self.marks else 0
@@ -53,15 +38,6 @@ students = [
     Student("Raj", [55, 65, 72]),
 ]
 
-
-# =====================================================================
-# M2 - FEATURE 1: Subprogram definitions and parameters
-#      FEATURE 2: Local referencing environments
-# Menu: 1. Add student, 2. View all students & grades
-# Must show: formal/actual params, default values, return values,
-#            positional + keyword args; local variables, nested
-#            functions, variable lifetime.
-# =====================================================================
 
 #FEATURE 1:
 #create_student() builds a new Student, a list of marks and an optional bonus (default 0), and returns it.
@@ -106,7 +82,6 @@ def option_add_student():
     
     
 #FEATURES 2:
-
 # works out a student's total, average
 def compute_grade(student, pass_mark=50):
     """Return (total, average, letter) for one student."""
@@ -161,13 +136,9 @@ def demo_m2():
         print("[F2] lifetime ended   :", err)
 
 
-# =====================================================================
-# M3 - FEATURE 3: Parameter-passing modes and methods
-# Menu: 3. Adjust marks  (+ an "out" example in option 4 if you want)
-# Must show: in / out / inout modes; pass-by-value, pass-by-result,
-#            pass-by-value-result, pass-by-reference. Label which are
-#            native and which are simulated.
-# =====================================================================
+# FEATURE 3:
+# in / out / inout modes; pass-by-value, pass-by-result,
+# pass-by-value-result, pass-by-reference.
 
 # 1. Mode: IN | Method: Pass-by-value
 # Status in Python: NATIVE-EQUIVALENT for immutable types (int, float, str)
@@ -281,21 +252,10 @@ def demo_m3():
     print(f"[INOUT / Pass-by-reference] after:  {demo_student}")
 
 
-# =====================================================================
-# M4 - FEATURE 4: Overloaded and generic subprograms
-#      FEATURE 5: Subprograms as parameters and indirect calls
-# Menu: 4. Show class statistics  (Feature 5 is used by option 5 too)
-# Must show: overloaded + generic functions; a function that takes
-#            another function as a parameter and calls it indirectly.
-# =====================================================================
-
 T = TypeVar("T")
 
 
 # Feature 4a: Overloaded subprogram (SIMULATED in Python via singledispatch)
-# Python does not natively support compile-time ad-hoc overloading (redefining
-# a function name overwrites it). functools.singledispatch simulates overloading
-# by dispatching at runtime based on the type of the first argument.
 @singledispatch
 def summarize(data):
     """Default fallback if an unsupported type is passed."""
@@ -431,13 +391,6 @@ def demo_m4():
     print("Indirect call (apply_to_all +5):", sample[0])
 
 
-# =====================================================================
-# M5 - FEATURE 6: Closures
-#      FEATURE 7: Coroutines or generators
-#      + a RECURSIVE call for the Task 2 stack diagram
-# Menu: 5. Curve all marks, 6. Generate report
-# =====================================================================
-
 # Feature 6: Closure (NATIVE in Python)
 def make_curve(points, cap=100):
     """Outer function ('curve maker') that returns a closure."""
@@ -447,7 +400,7 @@ def make_curve(points, cap=100):
     return apply_curve
 
 
-# Task 2 Requirement: Recursive subprogram (NATIVE in Python)
+# Task 2: Recursive subprogram (NATIVE in Python)
 def total_marks_recursive(marks, index=0):
     """Recursively calculates a student's total marks.
     Used in the report and for Task 2 Stack Diagram #2."""
@@ -459,8 +412,6 @@ def total_marks_recursive(marks, index=0):
 
 
 # Feature 7: Generator / Semi-Coroutine (NATIVE in Python)
-# Note: This is a generator (produces values via `yield`), not a full
-# coroutine (which also receives values via `.send()`).
 def report_generator(student_list):
     """Yields one student's report at a time, suspending execution
     and preserving local state between calls."""
@@ -519,10 +470,6 @@ def demo_m5():
     total = total_marks_recursive(ali_marks)
     print(f"Recursive total for {students[0].name} {ali_marks}: {total}")
 
-
-# =====================================================================
-# M1 - FEATURE 8 menu options + HELPERS + MENU + DEMO
-# =====================================================================
 
 def show_students():
     """Shared helper: list students with their marks and average."""
@@ -607,4 +554,4 @@ def demo():
 
 if __name__ == "__main__":
     # demo()        # use this for Python Tutor screenshots
-    menu()      # uncomment for the interactive system
+    menu()      
