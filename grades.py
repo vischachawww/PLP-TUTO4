@@ -63,20 +63,102 @@ students = [
 #            functions, variable lifetime.
 # =====================================================================
 
+#FEATURE 1:
+#create_student() builds a new Student, a list of marks and an optional bonus (default 0), and returns it.
+#option_add_student() reads the input, calls create_student()
+#returned Student to the `students` list. 
+
+def create_student(name, marks, bonus=0):
+    """Build a Student. Every mark gets `bonus` extra points (capped at 100).
+    The caller's `marks` list is NOT modified (a new list is built)."""
+    boosted = [min(m + bonus, 100) for m in marks]    # local variable
+    return Student(name, boosted)
+
+
 def option_add_student():
-    """Menu option 1. (M2)"""
-    print("TODO (M2): add a student")
+    """Menu option 1 - Feature 1: Add a student. (M2)"""
+    name = input("Student name: ").strip()
+    if not name:
+        print("Name cannot be empty.")
+        return
+
+    marks = read_marks("Enter marks (0-100) separated by spaces: ")
+    if not marks:
+        print("At least one mark is required.")
+        return
+    if any(m < 0 or m > 100 for m in marks):
+        print("Marks must be between 0 and 100.")
+        return
+
+    bonus_text = input("Bonus points for every mark (Enter = 0): ").strip()
+    try:
+        bonus = int(bonus_text) if bonus_text else 0
+    except ValueError:
+        print("Bonus must be a whole number.")
+        return
+
+    if bonus_text:
+        new_student = create_student(name, marks, bonus)         
+    else:
+        new_student = create_student(name=name, marks=marks)     # keyword args, default bonus=0
+    students.append(new_student)
+    print(f"Added: {new_student}")
+    
+    
+#FEATURES 2:
+
+# works out a student's total, average
+def compute_grade(student, pass_mark=50):
+    """Return (total, average, letter) for one student."""
+    total = sum(student.marks)                                  # local
+    average = total / len(student.marks) if student.marks else 0  # local
+
+    def to_letter(score):                       # nested helper
+        if score < pass_mark:                   # reads parent's variable
+            return "F"
+        if score >= 80:
+            return "A"
+        if score >= 70:
+            return "B"
+        if score >= 60:
+            return "C"
+        return "D"
+
+    grade = to_letter(average)                  # local
+    return total, average, grade
+    # <- on return: total, average, grade, to_letter and the frame are destroyed
 
 
 def option_view_students():
-    """Menu option 2. (M2)"""
-    show_students()                     # replace/extend as you like
-    print("TODO (M2): show grades")
+    """Menu option 2 - Feature 2: View all students and their grades. (M2)"""
+    if not students:
+        print("No students yet.")
+        return
+    print(f"\n{'#':<3}{'Name':<10}{'Marks':<20}{'Total':>6}{'Avg':>8}  Grade")
+    for i, s in enumerate(students, 1):
+        total, average, grade = compute_grade(s)
+        print(f"{i:<3}{s.name:<10}{str(s.marks):<20}{total:>6}{average:>8.1f}  {grade}")
 
-
+#shows that the locals and the nested function no longer exist after the call returns.
 def demo_m2():
     """Non-interactive demo of Features 1 and 2. (M2)"""
-    print("TODO (M2)")
+    # ---- Feature 1: parameters, defaults, return values ----
+    print("[F1] positional args  :", create_student("Siti", [60, 70, 80], 5))
+    print("[F1] keyword args     :", create_student(marks=[60, 70, 80], name="Siti"))
+    print("[F1] default bonus=0  :", create_student("Siti", [60, 70, 80]))
+    print("[F1] cap at 100       :", create_student("Top", [98, 100], bonus=10))
+
+    # ---- Feature 2: local variables, nested function, lifetime ----
+    ali = students[0]                                  # Student("Ali", [70, 85, 60])
+    total, average, grade = compute_grade(ali)         # frame created here
+    print(f"[F2] {ali.name}: total={total}, average={average:.1f}, grade={grade}")
+    print("[F2] stricter pass_mark=75 :", compute_grade(ali, pass_mark=75)[2])
+
+    # Lifetime: compute_grade's frame is gone, so its local names no longer exist.
+    try:
+        print(to_letter(90))                            # nested helper is not visible here
+    except NameError as err:
+        print("[F2] lifetime ended   :", err)
 
 
 # =====================================================================
